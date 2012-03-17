@@ -1,12 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/RelativeLayout1"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
+    android:gravity="center_horizontal"
     android:orientation="vertical" >
 
     <TextView
-        android:layout_width="fill_parent"
+        android:id="@+id/txtHeaderMsg"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="10dp"
         android:text="@string/hello" />
 
-</LinearLayout>
+    <Button
+        android:id="@+id/btnCapture"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="40dp"
+        android:text="@string/btnCapture" />
+
+    <Button
+        android:id="@+id/btnSelect"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/btnCapture"
+        android:layout_below="@+id/btnCapture"
+        android:layout_marginTop="20dp"
+        android:text="@string/btnSelect" />
+
+    <Button
+        android:id="@+id/btnSettings"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/btnSelect"
+        android:layout_below="@+id/btnSelect"
+        android:layout_marginTop="20dp"
+        android:text="@string/btnSettings" />
+
+    <Button
+        android:id="@+id/btnStitch"
+        android:layout_width="140dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/btnSettings"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="20dp"
+        android:text="@string/btnStitch" />
+
+    <ProgressBar
+        android:id="@+id/stitchProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/btnStitch"
+        android:layout_marginTop="42dp" />
+
+    <TextView
+        android:id="@+id/txtProgressMsg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/stitchProgress"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginBottom="20dp"
+        android:text="TextView" />
+
+    <Button
+        android:id="@+id/btnOpen"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/stitchProgress"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="20dp"
+        android:text="@string/btnOpen" />
+
+    <TextView
+        android:id="@+id/txtCaptureCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/btnCapture"
+        android:layout_alignBottom="@+id/btnCapture"
+        android:layout_toRightOf="@+id/btnCapture"
+        android:text="TextView" />
+
+    <TextView
+        android:id="@+id/txtSelectCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/btnSelect"
+        android:layout_alignBottom="@+id/btnSelect"
+        android:layout_alignLeft="@+id/txtCaptureCount"
+        android:text="TextView" />
+
+</RelativeLayout>

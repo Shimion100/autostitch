@@ -3,5 +3,10 @@
 
     <string name="hello">Hello World, AutoStitchActivity!</string>
     <string name="app_name">AutoStitch</string>
+    <string name="btnCapture">Capture</string>
+    <string name="btnSelect">Select</string>
+    <string name="btnSettings">Settings</string>
+    <string name="btnStitch">Stitch</string>
+    <string name="btnOpen">Open</string>
 
 </resources>
