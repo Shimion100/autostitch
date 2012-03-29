@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="hello">Hello World, AutoStitchActivity!</string>
+    <string name="hello">Welcome to AutoStitch!</string>
     <string name="app_name">AutoStitch</string>
     <string name="btnCapture">Capture</string>
     <string name="btnSelect">Select</string>
@@ -9,5 +9,9 @@
     <string name="btnStitch">Stitch</string>
     <string name="btnOpen">Open</string>
     <string name="initCount">0</string>
+    <drawable name="imgDraw">#0000FF</drawable>
+    <string name="imgDesc">camera image</string>
+    <string name="img_list_name">Image Select</string>
+    <string name="btnDone">Done</string>
 
 </resources>
