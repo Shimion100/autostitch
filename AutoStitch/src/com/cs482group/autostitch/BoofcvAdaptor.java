@@ -2,13 +2,18 @@ package com.cs482group.autostitch;
 
 import android.graphics.*;
 import boofcv.struct.image.*;
+import georegression.struct.homo.Homography2D_F64;
 //import boofcv.core.image.*;
 
 public class BoofcvAdaptor {
 	
+	// general image stitching example:
+	// https://github.com/lessthanoptimal/BoofCV/blob/master/examples/src/boofcv/examples/ExampleImageStitching.java
+	
 	// convertFromSingle (buf img -> grayscale)
 	// convertFromMulti (buf img -> multi)
 	// convertTo (multi -> buf img)
+	// configure -> stitching image A and B to canvas C
 	
 	@SuppressWarnings("rawtypes")
 	public static <T extends ImageSingleBand> MultiSpectral<ImageSInt32>
@@ -49,4 +54,9 @@ public class BoofcvAdaptor {
 		return dst;
 	}
 	
+	//https://github.com/lessthanoptimal/BoofCV/blob/master/main/visualize/src/boofcv/gui/image/HomographyStitchPanel.java
+	//public synchronized void configure(BufferedImage imageA, BufferedImage imageB , Homography2D_F64 fromAtoB )
+	public void configure(Bitmap imageA, Bitmap imageB, Homography2D_F64 fromAtoB) {
+		
+	}
 }

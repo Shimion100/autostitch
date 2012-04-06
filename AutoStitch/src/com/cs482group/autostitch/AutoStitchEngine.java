@@ -141,29 +141,62 @@ public class AutoStitchEngine {
 	public static <T extends ImageSingleBand> void stitch( BufferedImage imageA , BufferedImage imageB ,
 	Class<T> imageType ) {
 		
+		// need to replace ConvertBufferedImage.convertFromSingle
+		// with BoofcvAdaptor.convertFrom(..)
 		T inputA = ConvertBufferedImage.convertFromSingle(imageA, null, imageType);
 		T inputB = ConvertBufferedImage.convertFromSingle(imageB, null, imageType);
 		
 		// Detect using the standard SURF feature descriptor and describer
 		InterestPointDetector<T> detector = FactoryInterestPoint.fastHessian(1, 2, 400, 1, 9, 4, 4);
 		DescribeRegionPoint<T> describe = FactoryDescribeRegionPoint.surf(true,imageType);
+		
+		/* 
+		 * KNN
+		 * -----------------------------------------------------
+		 * FactoryAssociation returns the GeneralAssociation class that will
+		 * find the closest descriptor vectors. These vectors are passed in
+		 * to the class in the computeTransform(...) function above
+		 * To replace with KNN
+		 * 1. Extend the class the implements the greedy algorithm
+		 * 2. Write the new KNN alg to return a GeneralAssociation class that implements it
+		 * 3. rewrite the lines of code below
+		 */
+		// This is the GREEDY method for finding neighbors
+		// Need to replace FactoryAssociation.greedy(...) with KNN
 		GeneralAssociation<TupleDesc_F64> associate = FactoryAssociation.greedy(new ScoreAssociateEuclideanSq(),2,-1,true);
 		
 		// fit the images using a homography. This works well for rotations and distant objects.
 		GenerateHomographyLinear modelFitter = new GenerateHomographyLinear();
 		DistanceHomographySq distance = new DistanceHomographySq();
 		int minSamples = modelFitter.getMinimumPoints();
+		
+		
+		/*
+		 * RANSAC
+		 * -------------------------------------
+		 * SimpleInlierRansac implements RANSAC and extends ModelMatcher
+		 * For image stitching we need a model matcher
+		 * To replace
+		 * 1. extend SimpleInlierRansac
+		 * 2. write your own RANSAC implementation
+		 */
+		// model matcher implements RANSAC
 		ModelMatcher<Homography2D_F64,AssociatedPair> modelMatcher =
 		new SimpleInlierRansac<Homography2D_F64,AssociatedPair>(123,modelFitter,distance,60,minSamples,30,1000,9);
 		
 		Homography2D_F64 H = computeTransform(inputA, inputB, detector, describe, associate, modelMatcher);
 		
-		// draw the results
+		
+		// these custom panels probably won't work in Android
+		// shouldn't use them or ShowImages class
+		// need to replace panel.configure with BoofcvAdaptor.configure(..)
 		HomographyStitchPanel panel = new HomographyStitchPanel(0.5,inputA.width,inputA.height);
 		panel.configure(imageA,imageB,H);
 		ShowImages.showWindow(panel,"Stitched Images");
 	}
 	
+	// get function from internet
+	// DON'T use -> BoofcvAdaptor should do this when loading the image
 	public Bitmap bitmapToGray(Bitmap bmp) {        
 	    int width, height;
 	    height = bmp.getHeight();
@@ -182,6 +215,12 @@ public class AutoStitchEngine {
 
 	
 	public static void main( String args[] ) {
+		
+		/*
+		 * The image loading process for Android is done with URIs
+		 * need to remove UtilImageIO and replace with correct code
+		 */
+		
 		BufferedImage imageA,imageB;
 		imageA = UtilImageIO.loadImage("../data/evaluation/stitch/mountain_rotate_01.jpg");
 		imageB = UtilImageIO.loadImage("../data/evaluation/stitch/mountain_rotate_03.jpg");
@@ -194,5 +233,40 @@ public class AutoStitchEngine {
 		imageA = UtilImageIO.loadImage("../data/evaluation/scale/rainforest_01.jpg");
 		imageB = UtilImageIO.loadImage("../data/evaluation/scale/rainforest_02.jpg");
 		stitch(imageA,imageB, ImageFloat32.class);
+		
+		/*
+		 * The order of implementation is:
+		 * 1. KNN
+		 * 2. RANSAC
+		 * 3. Blending
+		 * 4. Projection
+		 */
+		
+		/*
+		 * KNN and RANSAC sections are found above in the stitch(...) function
+		 */
+		
+		/*
+		 * BLENDING CODE
+		 * --------------------------------------
+		 * The images are stored in both rgb arrays in MultiSpectral and gray
+		 * scale in ImageSingleBand.
+		 * BoofCV contains classes for applying filters and performing operations
+		 * like applying Gausians and finding derivatives
+		 * 
+		 */
+		
+		/* 
+		 *  PROJECTION / HOMOGRAPHY
+		 *  --------------------------------------
+		 *  the homography computed above is to map image A and B to panel C
+		 *  the code for this is here:
+		 *  https://github.com/lessthanoptimal/BoofCV/blob/master/main/visualize/src/boofcv/gui/image/HomographyStitchPanel.java
+		 *  --------------------------------------
+		 *  the source code above is a good example of how to map points in
+		 *  two images to a common canvas
+		 * 
+		 */
+		
 	}
 }
