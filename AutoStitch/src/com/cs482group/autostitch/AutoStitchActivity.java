@@ -7,19 +7,10 @@ import android.view.View;
 import android.widget.*;
 import android.net.Uri;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
-import android.graphics.Paint;
 import android.provider.MediaStore;
 import android.os.Environment;
 import java.io.File;
-import java.util.Date;
-import java.text.SimpleDateFormat;
 import android.util.Log;
-import java.io.FileOutputStream;
 
 import java.util.ArrayList;
 
@@ -83,7 +74,7 @@ public class AutoStitchActivity extends Activity implements OnClickListener {
     
     public void startCameraIntent(){
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        String imgName = "IMG_" + (new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date())) + ".jpg";
+        String imgName = AutoStitchEngine.getNewImageName();
         File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "AutoStitch");
         File img = new File(dir.getPath() + File.separator + imgName);
         
@@ -152,7 +143,8 @@ public class AutoStitchActivity extends Activity implements OnClickListener {
         		}
         		
         		if( imgList.size() > 0 ){
-        			this.createGrayImage(imgList.get(0));
+        			// just a test
+        			//this.createGrayImage(imgList.get(0));
         		}
         		
         		Log.d(TAG, "image/uri list created with " + imgList.size() + " images");
@@ -163,6 +155,8 @@ public class AutoStitchActivity extends Activity implements OnClickListener {
     	
     }
     
+    /*
+     * Created for testing purposes
     public void createGrayImage(Uri img) {
     	try {
     		Bitmap bmp = MediaStore.Images.Media.getBitmap(this.getContentResolver(), img);
@@ -191,26 +185,10 @@ public class AutoStitchActivity extends Activity implements OnClickListener {
     		Log.e(TAG, e.getMessage());
     	}
     }
-    
-	public Bitmap bitmapToGray(Bitmap bmp) {        
-	    int width, height;
-	    height = bmp.getHeight();
-	    width = bmp.getWidth();
-
-	    Bitmap bmpGrayscale = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
-	    Canvas c = new Canvas(bmpGrayscale);
-	    Paint paint = new Paint();
-	    ColorMatrix cm = new ColorMatrix();
-	    cm.setSaturation(0);
-	    ColorMatrixColorFilter f = new ColorMatrixColorFilter(cm);
-	    paint.setColorFilter(f);
-	    c.drawBitmap(bmp, 0, 0, paint);
-	    return bmpGrayscale;
-	}
+    */
     
     public Uri getUriFromId(String id) {
     	return Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
     }
-    
     
 }

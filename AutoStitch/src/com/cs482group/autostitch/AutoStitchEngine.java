@@ -25,13 +25,9 @@ import boofcv.alg.feature.associate.ScoreAssociateEuclideanSq;
 import boofcv.alg.geo.AssociatedPair;
 import boofcv.alg.sfm.robust.DistanceHomographySq;
 import boofcv.alg.sfm.robust.GenerateHomographyLinear;
-import boofcv.core.image.ConvertBufferedImage;
 import boofcv.factory.feature.associate.FactoryAssociation;
 import boofcv.factory.feature.describe.FactoryDescribeRegionPoint;
 import boofcv.factory.feature.detect.interest.FactoryInterestPoint;
-import boofcv.gui.image.HomographyStitchPanel;
-import boofcv.gui.image.ShowImages;
-import boofcv.io.image.UtilImageIO;
 import boofcv.numerics.fitting.modelset.ModelMatcher;
 import boofcv.numerics.fitting.modelset.ransac.SimpleInlierRansac;
 import boofcv.struct.FastQueue;
@@ -43,13 +39,25 @@ import boofcv.struct.image.ImageSingleBand;
 import georegression.struct.homo.Homography2D_F64;
 import georegression.struct.point.Point2D_F64;
 
-import java.awt.image.BufferedImage;
+//import java.awt.image.BufferedImage;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.io.FileOutputStream;
 
 import android.graphics.*;
+import android.net.Uri;
+import android.provider.MediaStore;
+import android.util.Log;
+import android.content.ContentResolver;
+
 
 public class AutoStitchEngine {
+	
+	private static final String TAG = "AutoStitchEngine";
+	private static ASHomographyStitchPanel hsp;
+	
 	/**
 	* Using abstracted code, find a transform which minimizes the difference between corresponding features
 	* in both images. This code is completely model independent and is the core algorithms.
@@ -138,13 +146,18 @@ public class AutoStitchEngine {
 	* Given two input images create and display an image where the two have been overlayed on top of each other.
 	*/
 	@SuppressWarnings("rawtypes")
-	public static <T extends ImageSingleBand> void stitch( BufferedImage imageA , BufferedImage imageB ,
+	public static <T extends ImageSingleBand> void stitch( Bitmap imageA , Bitmap imageB ,
 	Class<T> imageType ) {
 		
 		// need to replace ConvertBufferedImage.convertFromSingle
 		// with BoofcvAdaptor.convertFrom(..)
-		T inputA = ConvertBufferedImage.convertFromSingle(imageA, null, imageType);
-		T inputB = ConvertBufferedImage.convertFromSingle(imageB, null, imageType);
+		//T inputA = ConvertBufferedImage.convertFromSingle(imageA, null, imageType);
+		//T inputB = ConvertBufferedImage.convertFromSingle(imageB, null, imageType);
+		
+		@SuppressWarnings("unchecked")
+		T inputA = (T) BoofcvAdaptor.convertFrom(imageA, null);
+		@SuppressWarnings("unchecked")
+		T inputB = (T) BoofcvAdaptor.convertFrom(imageB, null);
 		
 		// Detect using the standard SURF feature descriptor and describer
 		InterestPointDetector<T> detector = FactoryInterestPoint.fastHessian(1, 2, 400, 1, 9, 4, 4);
@@ -184,43 +197,78 @@ public class AutoStitchEngine {
 		ModelMatcher<Homography2D_F64,AssociatedPair> modelMatcher =
 		new SimpleInlierRansac<Homography2D_F64,AssociatedPair>(123,modelFitter,distance,60,minSamples,30,1000,9);
 		
-		Homography2D_F64 H = computeTransform(inputA, inputB, detector, describe, associate, modelMatcher);
-		
+		try {
+			// this throws exception:
+			Homography2D_F64 H = computeTransform(inputA, inputB, detector, describe, associate, modelMatcher);
+			hsp = new ASHomographyStitchPanel(0.5,inputA.width,inputA.height);
+			hsp.configure(imageA,imageB,H);
+		} catch (Exception e) {
+			Log.e(TAG, "Compute Transfrom failed");
+		}
 		
 		// these custom panels probably won't work in Android
 		// shouldn't use them or ShowImages class
 		// need to replace panel.configure with BoofcvAdaptor.configure(..)
-		HomographyStitchPanel panel = new HomographyStitchPanel(0.5,inputA.width,inputA.height);
-		panel.configure(imageA,imageB,H);
-		ShowImages.showWindow(panel,"Stitched Images");
+		
+		//HomographyStitchPanel panel = new HomographyStitchPanel(0.5,inputA.width,inputA.height);
+		//panel.configure(imageA,imageB,H);
+		//ShowImages.showWindow(panel,"Stitched Images");
+	}
+
+	public void panoramaStitch(ArrayList<Uri> imgList, ContentResolver cr) {
+		
+    	try {
+    		int index = 0;
+    		
+    		if(imgList.size()<2) {
+    			Log.e(TAG, "Less than 2 images: can't stitch 1 image with itself");
+    			return;
+    		}
+    		
+    		// load 1st image in list -> working image
+    		Bitmap imageA = MediaStore.Images.Media.getBitmap(cr, imgList.get(0));
+    		do {
+    			index++;
+    			// load the next image to stitch with the working image
+    			Bitmap imageB = MediaStore.Images.Media.getBitmap(cr, imgList.get(index));
+    			// stitch working image and new image
+    			AutoStitchEngine.stitch(imageA, imageB, ImageFloat32.class);
+    			// recycle the old working image
+    			imageA.recycle();
+    			imageA = null;
+    			// load the new working image
+    			imageA = hsp.getOutput();
+    			// recycle the old 'new image'
+    			imageB.recycle();
+    		} while (index < imgList.size());
+    		
+    		
+    	} catch (Exception e) {
+    		Log.e(TAG, e.getMessage());
+    	}
+		
 	}
 	
-	// get function from internet
-	// DON'T use -> BoofcvAdaptor should do this when loading the image
-	public Bitmap bitmapToGray(Bitmap bmp) {        
-	    int width, height;
-	    height = bmp.getHeight();
-	    width = bmp.getWidth();    
-
-	    Bitmap bmpGrayscale = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
-	    Canvas c = new Canvas(bmpGrayscale);
-	    Paint paint = new Paint();
-	    ColorMatrix cm = new ColorMatrix();
-	    cm.setSaturation(0);
-	    ColorMatrixColorFilter f = new ColorMatrixColorFilter(cm);
-	    paint.setColorFilter(f);
-	    c.drawBitmap(bmp, 0, 0, paint);
-	    return bmpGrayscale;
+	public void saveImage(Bitmap image) {
+		try {
+			image.compress(Bitmap.CompressFormat.JPEG, 90, new FileOutputStream("/sdcard/" + AutoStitchEngine.getNewImageName()));
+		} catch (Exception e) {
+			Log.e(TAG, "saving image failed: " + e.getMessage());
+		}
 	}
-
+	
+    public static String getNewImageName() {
+    	// standard image naming scheme
+    	return ("IMG_" + (new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date())) + ".jpg");
+    }
 	
 	public static void main( String args[] ) {
-		
 		/*
 		 * The image loading process for Android is done with URIs
 		 * need to remove UtilImageIO and replace with correct code
 		 */
 		
+		/*// original code
 		BufferedImage imageA,imageB;
 		imageA = UtilImageIO.loadImage("../data/evaluation/stitch/mountain_rotate_01.jpg");
 		imageB = UtilImageIO.loadImage("../data/evaluation/stitch/mountain_rotate_03.jpg");
@@ -233,6 +281,7 @@ public class AutoStitchEngine {
 		imageA = UtilImageIO.loadImage("../data/evaluation/scale/rainforest_01.jpg");
 		imageB = UtilImageIO.loadImage("../data/evaluation/scale/rainforest_02.jpg");
 		stitch(imageA,imageB, ImageFloat32.class);
+		*/
 		
 		/*
 		 * The order of implementation is:
@@ -267,6 +316,5 @@ public class AutoStitchEngine {
 		 *  two images to a common canvas
 		 * 
 		 */
-		
 	}
 }
