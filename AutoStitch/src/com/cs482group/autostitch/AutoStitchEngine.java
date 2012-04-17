@@ -87,6 +87,9 @@ public class AutoStitchEngine {
 		describeImage(imageA, detector, describe, pointsA, descA);
 		describeImage(imageB, detector, describe, pointsB, descB);
 		
+		Log.d(TAG,"Found " + descA.size + " features for Image A");
+		Log.d(TAG,"Found " + descB.size + " features for Image B");
+		
 		// Associate features between the two images
 		associate.associate(descA,descB);
 		
@@ -94,15 +97,26 @@ public class AutoStitchEngine {
 		FastQueue<AssociatedIndex> matches = associate.getMatches();
 		List<AssociatedPair> pairs = new ArrayList<AssociatedPair>();
 		
+		Log.d(TAG,"Found " + matches.size + " common features from both");
+		
 		for( int i = 0; i < matches.size(); i++ ) {
 			AssociatedIndex match = matches.get(i);
 			
 			Point2D_F64 a = pointsA.get(match.src);
 			Point2D_F64 b = pointsB.get(match.dst);
 			
-			pairs.add( new AssociatedPair(a,b,false));
+			if( i<20 ) {
+				Log.d(TAG,"(" + a.x + "," + a.y + ") -> (" + b.x + "," + b.y + ")");
+			}
+			
+			if(Math.abs(a.y - b.y) < 100) {
+				pairs.add(new AssociatedPair(a,b,false));
+			}
 		}
+
+		Log.d(TAG,"Added " + pairs.size() + " pairs. Discarded " + (matches.size() - pairs.size()) + ".");
 		
+		Log.d(TAG,"processing model matcher");
 		// find the best fit model to describe the change between these images
 		if( !modelMatcher.process(pairs) )
 			throw new RuntimeException("Model Matcher failed!");
@@ -154,15 +168,26 @@ public class AutoStitchEngine {
 		//T inputA = ConvertBufferedImage.convertFromSingle(imageA, null, imageType);
 		//T inputB = ConvertBufferedImage.convertFromSingle(imageB, null, imageType);
 		
+		Log.d(TAG,"convert bitmap A to ImageFloat32");
 		@SuppressWarnings("unchecked")
 		T inputA = (T) BoofcvAdaptor.convertFrom(imageA, null);
+		//imageA.recycle();
+		//imageA = null;
+		
+		Log.d(TAG,"convert bitmap B to ImageFloat32");
 		@SuppressWarnings("unchecked")
 		T inputB = (T) BoofcvAdaptor.convertFrom(imageB, null);
+		//imageB.recycle();
+		//imageB = null;
 		
+		Log.d(TAG,"call fastHessian and surf");
 		// Detect using the standard SURF feature descriptor and describer
-		InterestPointDetector<T> detector = FactoryInterestPoint.fastHessian(1, 2, 400, 1, 9, 4, 4);
+		// 1, 2, 400, 1, 9, 4, 4
+		// max features per scale decreased from 400 -> 200
+		InterestPointDetector<T> detector = FactoryInterestPoint.fastHessian(1, 2, 200, 1, 9, 4, 4);
 		DescribeRegionPoint<T> describe = FactoryDescribeRegionPoint.surf(true,imageType);
 		
+		Log.d(TAG,"set up association and model classes");
 		/* 
 		 * KNN
 		 * -----------------------------------------------------
@@ -181,9 +206,9 @@ public class AutoStitchEngine {
 		// fit the images using a homography. This works well for rotations and distant objects.
 		GenerateHomographyLinear modelFitter = new GenerateHomographyLinear();
 		DistanceHomographySq distance = new DistanceHomographySq();
-		int minSamples = modelFitter.getMinimumPoints();
+		int minSamples = modelFitter.getMinimumPoints(); // returns 4 (hard coded)
 		
-		
+		Log.d(TAG,"set up RANSAC with " + minSamples + " min samples");
 		/*
 		 * RANSAC
 		 * -------------------------------------
@@ -194,16 +219,23 @@ public class AutoStitchEngine {
 		 * 2. write your own RANSAC implementation
 		 */
 		// model matcher implements RANSAC
+		//ModelMatcher<Homography2D_F64,AssociatedPair> modelMatcher =
+		//new SimpleInlierRansac<Homography2D_F64,AssociatedPair>(123,modelFitter,distance,60,minSamples,30,1000,9);
 		ModelMatcher<Homography2D_F64,AssociatedPair> modelMatcher =
-		new SimpleInlierRansac<Homography2D_F64,AssociatedPair>(123,modelFitter,distance,60,minSamples,30,1000,9);
+		new SimpleInlierRansac<Homography2D_F64,AssociatedPair>(123,modelFitter,distance,60,minSamples,30,200,9);
+		// threshold decreased from 9 -> 4
 		
 		try {
 			// this throws exception:
+			Log.d(TAG,"computeTransform");
 			Homography2D_F64 H = computeTransform(inputA, inputB, detector, describe, associate, modelMatcher);
+			Log.d(TAG,"create ASHomographyStitchPanel");
 			hsp = new ASHomographyStitchPanel(0.5,inputA.width,inputA.height);
+			Log.d(TAG,"configure the panel");
 			hsp.configure(imageA,imageB,H);
 		} catch (Exception e) {
-			Log.e(TAG, "Compute Transfrom failed");
+			Log.e(TAG, "Compute Transfrom failed - " + e.getMessage());
+			e.printStackTrace();
 		}
 		
 		// these custom panels probably won't work in Android
@@ -217,72 +249,6 @@ public class AutoStitchEngine {
 
 	public void panoramaStitch(ArrayList<Uri> imgList, ContentResolver cr) {
 		
-    	try {
-    		int index = 0;
-    		
-    		if(imgList.size()<2) {
-    			Log.e(TAG, "Less than 2 images: can't stitch 1 image with itself");
-    			return;
-    		}
-    		
-    		// load 1st image in list -> working image
-    		Bitmap imageA = MediaStore.Images.Media.getBitmap(cr, imgList.get(0));
-    		do {
-    			index++;
-    			// load the next image to stitch with the working image
-    			Bitmap imageB = MediaStore.Images.Media.getBitmap(cr, imgList.get(index));
-    			// stitch working image and new image
-    			AutoStitchEngine.stitch(imageA, imageB, ImageFloat32.class);
-    			// recycle the old working image
-    			imageA.recycle();
-    			imageA = null;
-    			// load the new working image
-    			imageA = hsp.getOutput();
-    			// recycle the old 'new image'
-    			imageB.recycle();
-    		} while (index < imgList.size());
-    		
-    		
-    	} catch (Exception e) {
-    		Log.e(TAG, e.getMessage());
-    	}
-		
-	}
-	
-	public void saveImage(Bitmap image) {
-		try {
-			image.compress(Bitmap.CompressFormat.JPEG, 90, new FileOutputStream("/sdcard/" + AutoStitchEngine.getNewImageName()));
-		} catch (Exception e) {
-			Log.e(TAG, "saving image failed: " + e.getMessage());
-		}
-	}
-	
-    public static String getNewImageName() {
-    	// standard image naming scheme
-    	return ("IMG_" + (new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date())) + ".jpg");
-    }
-	
-	public static void main( String args[] ) {
-		/*
-		 * The image loading process for Android is done with URIs
-		 * need to remove UtilImageIO and replace with correct code
-		 */
-		
-		/*// original code
-		BufferedImage imageA,imageB;
-		imageA = UtilImageIO.loadImage("../data/evaluation/stitch/mountain_rotate_01.jpg");
-		imageB = UtilImageIO.loadImage("../data/evaluation/stitch/mountain_rotate_03.jpg");
-		stitch(imageA,imageB, ImageFloat32.class);
-		
-		imageA = UtilImageIO.loadImage("../data/evaluation/stitch/kayak_01.jpg");
-		imageB = UtilImageIO.loadImage("../data/evaluation/stitch/kayak_03.jpg");
-		stitch(imageA,imageB, ImageFloat32.class);
-		
-		imageA = UtilImageIO.loadImage("../data/evaluation/scale/rainforest_01.jpg");
-		imageB = UtilImageIO.loadImage("../data/evaluation/scale/rainforest_02.jpg");
-		stitch(imageA,imageB, ImageFloat32.class);
-		*/
-		
 		/*
 		 * The order of implementation is:
 		 * 1. KNN
@@ -294,6 +260,42 @@ public class AutoStitchEngine {
 		/*
 		 * KNN and RANSAC sections are found above in the stitch(...) function
 		 */
+		
+    	try {
+    		int index = 1; // start at with image 1
+    		
+    		if(imgList.size()<2) {
+    			Log.e(TAG, "Less than 2 images: can't stitch 1 image with itself");
+    			return;
+    		}
+    		
+    		Log.d(TAG,"loading 1st bitmap image (imageA)");
+    		// load 1st image in list -> working image
+    		Bitmap imageA = MediaStore.Images.Media.getBitmap(cr, imgList.get(0));
+    		
+    		do {
+    			Log.d(TAG,"loading 2nd bitmap image (imageB)");
+    			// load the next image to stitch with the working image
+    			Bitmap imageB = MediaStore.Images.Media.getBitmap(cr, imgList.get(index));
+    			Log.d(TAG,"calling ASE.stitch function");
+    			// stitch working image and new image
+    			AutoStitchEngine.stitch(imageA, imageB, ImageFloat32.class);
+    			// both imageA and B are recycled in .stitch function
+    			Log.d(TAG,"getting output reference");
+    			// load the new working image
+    			imageA = hsp.getOutput();
+    			index++;
+    			
+    		} while (index < imgList.size());
+    		
+    		Log.d(TAG,"saving panoramic image");
+    		AutoStitchEngine.saveImage(imageA);
+    		
+    	} catch (Exception e) {
+    		Log.e(TAG, e.getMessage());
+    		return;
+    		// don't go on to blending/projection
+    	}
 		
 		/*
 		 * BLENDING CODE
@@ -316,5 +318,90 @@ public class AutoStitchEngine {
 		 *  two images to a common canvas
 		 * 
 		 */
+    	
+	}
+	
+	public static void saveImage(Bitmap image) {
+		// "/sdcard/" should be a path chosen in settings
+		try {
+			image.compress(Bitmap.CompressFormat.JPEG, 90, new FileOutputStream("/sdcard/" + AutoStitchEngine.getNewImageName()));
+		} catch (Exception e) {
+			Log.e(TAG, "saving image failed: " + e.getMessage());
+		}
+	}
+	
+    public static String getNewImageName() {
+    	// standard image naming scheme
+    	return ("IMG_" + (new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date())) + ".jpg");
+    }
+    
+    @SuppressWarnings("rawtypes")
+	public static <T extends ImageSingleBand>
+	void saveImageFeatures( ContentResolver cr, Uri img ) {
+    	
+    	try {
+	    	Log.d(TAG,"loading image");
+			Bitmap image = MediaStore.Images.Media.getBitmap(cr, img);
+	    	
+	    	Log.d(TAG,"(H"+image.getHeight()+"xW"+image.getWidth()+")");
+	    	//System.out.print("(H"+image.getHeight()+"xW"+image.getWidth()+")");
+	    
+	    	long startTime = System.currentTimeMillis();
+	    	
+			@SuppressWarnings("unchecked")
+			T input = (T) BoofcvAdaptor.convertFrom(image, null);
+			
+			Log.d(TAG,"recycling image #1");
+			
+			image.recycle();
+			image = null;
+			
+			Log.d(TAG,"creating detector");
+			// Create a Fast Hessian detector from the SURF paper.
+			// Other detectors can be used in this example too.
+			InterestPointDetector<T> detector = FactoryInterestPoint.fastHessian(10, 2, 100, 2, 9, 3, 4);
+			
+			Log.d(TAG,"detector.detect");
+			// find interest points in the image
+			detector.detect(input);
+			
+			Log.d(TAG,"re-loading the image");
+			image = MediaStore.Images.Media.getBitmap(cr, img);
+			
+			Log.d(TAG,"create map");
+			Bitmap map = Bitmap.createBitmap(image.getWidth(), image.getHeight(),image.getConfig());
+			Log.d(TAG,"init pixel array");
+			int [] allpixels = new int [ image.getHeight()*image.getWidth()];
+			Log.d(TAG,"write the pixel data");
+			image.getPixels(allpixels, 0, image.getWidth(), 0, 0, image.getWidth(),image.getHeight());
+			Log.d(TAG,"copy the pixel data");
+			map.setPixels(allpixels, 0, image.getWidth(), 0, 0, image.getWidth(), image.getHeight());
+			
+			Log.d(TAG,"recycling image #2");
+			image.recycle();
+			image = null;
+			
+			Log.d(TAG,"creating canvas from mutable map");
+			// Show the features
+			Canvas cvs = new Canvas(map);
+			Paint p = new Paint();
+			p.setColor(Color.RED);
+			p.setStyle(Paint.Style.FILL);
+	
+			Log.d(TAG,"drawing " + detector.getNumberOfFeatures() + " circles");
+			for( int i = 0; i < detector.getNumberOfFeatures(); i++ ) {
+				Point2D_F64 pt = detector.getLocation(i);
+				cvs.drawCircle((float) pt.x, (float) pt.y, 5, p);
+			}
+			
+			Log.d(TAG,"saving image");
+			saveImage(map);
+			
+	    	long endTime = System.currentTimeMillis();
+	    	Log.d(TAG,"Execution time is " + (endTime-startTime) + " ms.");
+			
+    	} catch (Exception e) {
+    		Log.e(TAG, e.getMessage());
+    	}
 	}
 }
