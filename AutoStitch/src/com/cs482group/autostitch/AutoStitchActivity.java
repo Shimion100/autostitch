@@ -7,10 +7,12 @@ import android.view.View;
 import android.widget.*;
 import android.net.Uri;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.provider.MediaStore;
 import android.os.Environment;
 import java.io.File;
 import android.util.Log;
+//import boofcv.struct.image.ImageFloat32;
 
 import java.util.ArrayList;
 
@@ -56,8 +58,9 @@ public class AutoStitchActivity extends Activity implements OnClickListener {
     		case R.id.btnCapture: startCameraIntent(); break;
     		case R.id.btnSelect: startPickerIntent(v); break;
     		case R.id.btnSettings: ; break;
-    		case R.id.btnStitch: ; break;
+    		case R.id.btnStitch: stitchImages(); break;
     		case R.id.btnOpen: 
+    			// image open test
     			if( imgList.size()>0 ) {
     				openImage(imgList.get(0)); 
     			} else { 
@@ -66,6 +69,49 @@ public class AutoStitchActivity extends Activity implements OnClickListener {
     			break;
     		default: Log.e(TAG, "onClick - unknown id - " + id); // error
     	}
+    }
+    
+    // the button stitch should be disabled until images are selected
+    public void stitchImages() {
+    	
+    	Log.d(TAG,"stitchImages() called");
+    	
+		if( imgList.size() > 0 ){
+			// just a test
+			// this.createGrayImage(imgList.get(0));
+			try {
+				// TEST:
+				// open an image, draw found features as circles, save new image
+				//Log.d(TAG,"loading image");
+				//Bitmap image = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imgList.get(0));
+				
+				//Log.d(TAG,"calling saveImageFeatures");
+				//AutoStitchEngine.saveImageFeatures(image);
+				//AutoStitchEngine.saveImageFeatures(this.getContentResolver(), imgList.get(0));
+				long startTime = System.currentTimeMillis();
+				AutoStitchEngine ase = new AutoStitchEngine();
+				Log.d(TAG,"calling panoramaStitch");
+				ase.panoramaStitch(imgList, this.getContentResolver());
+				long endTime = System.currentTimeMillis();
+				Log.d(TAG,"Execution time is " + (endTime-startTime) + " ms.");
+				
+				//image.recycle();
+				//image = null;
+			} catch (Exception e) {
+				Log.e(TAG, e.getMessage());
+			}
+		} else {
+			Log.w(TAG,"no images selected to stitch");
+		}
+    	
+    	// enable progress bars + others
+    	// do work
+    	
+    	
+    	// disable btnStitch
+    	// clear image list
+    	// clean-up
+    	// etc
     }
     
     public void openImage(Uri path) {
@@ -142,10 +188,9 @@ public class AutoStitchActivity extends Activity implements OnClickListener {
         			imgList.add(this.getUriFromId(chkdIds[i]));
         		}
         		
-        		if( imgList.size() > 0 ){
-        			// just a test
-        			//this.createGrayImage(imgList.get(0));
-        		}
+        		// if imgList.size() > 0
+        		// ENABLE btnStitch to be pressed
+        		
         		
         		Log.d(TAG, "image/uri list created with " + imgList.size() + " images");
         	} else {
