@@ -1,0 +1,8 @@
+\beamer@endinputifotherversion {3.10pt}
+\beamer@sectionintoc {2}{Objective}{3}{0}{1}
+\beamer@subsectionintoc {2}{1}{Investigate Image Stitching}{3}{0}{1}
+\beamer@sectionintoc {3}{Methodology}{4}{0}{2}
+\beamer@subsectionintoc {3}{1}{Dataset Collection}{5}{0}{2}
+\beamer@sectionintoc {4}{Stitching Process}{7}{0}{3}
+\beamer@subsectionintoc {4}{1}{The General Idea}{7}{0}{3}
+\beamer@subsectionintoc {4}{2}{Our Implementation}{8}{0}{3}
