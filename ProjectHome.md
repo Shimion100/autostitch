@@ -1,0 +1,1 @@
+AutoStitch is an Android application that creates high-resolution panoramic photos from multiple overlapping photos. It can capture new photos with the camera or use existing gallery photos to produce a composite panoramic photo. The final panoramic photo is a type of wide-angle photography.
